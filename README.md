@@ -4,7 +4,7 @@
 ![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22persistent-tabs%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json&style=for-the-badge)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-An Obsidian plugin that saves currently open tabs and restores them when Obsidian restarts.
+An Obsidian plugin that saves currently open tabs when closing the application and restores them when reopening it.
 
 ## How it Works
 
