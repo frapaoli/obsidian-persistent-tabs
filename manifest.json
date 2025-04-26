@@ -1,11 +1,10 @@
 {
-	"id": "sample-plugin",
-	"name": "Sample Plugin",
-	"version": "1.0.0",
-	"minAppVersion": "0.15.0",
-	"description": "Demonstrates some of the capabilities of the Obsidian API.",
-	"author": "Obsidian",
-	"authorUrl": "https://obsidian.md",
-	"fundingUrl": "https://obsidian.md/pricing",
+	"id": "persistent-tabs",
+	"name": "Persistent Tabs",
+	"version": "0.1.0",
+	"minAppVersion": "1.0.0",
+	"description": "Saves currently open tabs and restores them when Obsidian restarts.",
+	"author": "Francesco Paoli Leonardi",
+	"authorUrl": "https://github.com/frapaoli",
 	"isDesktopOnly": false
 }

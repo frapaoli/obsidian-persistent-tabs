@@ -1,134 +1,207 @@
-import { App, Editor, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Plugin, PluginSettingTab, Setting, WorkspaceLeaf, TFile, ViewState } from 'obsidian';
 
-// Remember to rename these classes and interfaces!
-
-interface MyPluginSettings {
-	mySetting: string;
+// Interface for our plugin's settings
+interface PersistentTabsSettings {
+    savedTabs: SerializedLeaf[];
 }
 
-const DEFAULT_SETTINGS: MyPluginSettings = {
-	mySetting: 'default'
+// Interface to store the necessary info about a leaf (tab)
+// We store the ViewState which includes file path, view mode, scroll position etc.
+interface SerializedLeaf {
+    filePath: string | null; // Store path separately for easier lookup
+    state: ViewState;
 }
 
-export default class MyPlugin extends Plugin {
-	settings: MyPluginSettings;
+// Default settings
+const DEFAULT_SETTINGS: PersistentTabsSettings = {
+    savedTabs: [],
+};
 
-	async onload() {
-		await this.loadSettings();
+export default class PersistentTabsPlugin extends Plugin {
+    settings: PersistentTabsSettings;
+    restoring = false; // Flag to prevent saving during restore process
 
-		// This creates an icon in the left ribbon.
-		const ribbonIconEl = this.addRibbonIcon('dice', 'Sample Plugin', (evt: MouseEvent) => {
-			// Called when the user clicks the icon.
-			new Notice('This is a notice!');
-		});
-		// Perform additional things with the ribbon
-		ribbonIconEl.addClass('my-plugin-ribbon-class');
+    async onload() {
+        console.log('Loading Persistent Tabs plugin');
 
-		// This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-		const statusBarItemEl = this.addStatusBarItem();
-		statusBarItemEl.setText('Status Bar Text');
+        await this.loadSettings();
 
-		// This adds a simple command that can be triggered anywhere
-		this.addCommand({
-			id: 'open-sample-modal-simple',
-			name: 'Open sample modal (simple)',
-			callback: () => {
-				new SampleModal(this.app).open();
-			}
-		});
-		// This adds an editor command that can perform some operation on the current editor instance
-		this.addCommand({
-			id: 'sample-editor-command',
-			name: 'Sample editor command',
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				console.log(editor.getSelection());
-				editor.replaceSelection('Sample Editor Command');
-			}
-		});
-		// This adds a complex command that can check whether the current state of the app allows execution of the command
-		this.addCommand({
-			id: 'open-sample-modal-complex',
-			name: 'Open sample modal (complex)',
-			checkCallback: (checking: boolean) => {
-				// Conditions to check
-				const markdownView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (markdownView) {
-					// If checking is true, we're simply "checking" if the command can be run.
-					// If checking is false, then we want to actually perform the operation.
-					if (!checking) {
-						new SampleModal(this.app).open();
-					}
+        // Add a setting tab (optional, but good practice)
+        this.addSettingTab(new PersistentTabsSettingTab(this.app, this));
 
-					// This command will only show up in Command Palette when the check function returns true
-					return true;
-				}
-			}
-		});
+        // Use onLayoutReady to ensure the workspace is fully initialized
+        this.app.workspace.onLayoutReady(async () => {
+            await this.restoreTabs();
+        });
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new SampleSettingTab(this.app, this));
+        // Register the interval function to save tabs periodically and on unload
+        // Using onunload is crucial for capturing the state just before closing
+        this.register(this.saveTabs.bind(this)); // Bind 'this' context
 
-		// If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-		// Using this function will automatically remove the event listener when this plugin is disabled.
-		this.registerDomEvent(document, 'click', (evt: MouseEvent) => {
-			console.log('click', evt);
-		});
+        // Consider adding a command to manually save/restore if desired
+        // this.addCommand({
+        //  id: 'save-persistent-tabs',
+        //  name: 'Save open tabs now',
+        //  callback: () => this.saveTabs()
+        // });
+        // this.addCommand({
+        //  id: 'restore-persistent-tabs',
+        //  name: 'Restore saved tabs',
+        //  callback: () => this.restoreTabs()
+        // });
+    }
 
-		// When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-		this.registerInterval(window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000));
-	}
+    onunload() {
+        console.log('Unloading Persistent Tabs plugin and saving state');
+        // Ensure tabs are saved when the plugin is disabled or Obsidian closes
+        // Check the flag to avoid saving an empty state if unload happens during restore
+        if (!this.restoring) {
+            this.saveTabs();
+        }
+    }
 
-	onunload() {
+    async loadSettings() {
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+    }
 
-	}
+    async saveSettings() {
+        await this.saveData(this.settings);
+    }
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
+    getCurrentLeaves(): WorkspaceLeaf[] {
+        // Support more view types for a better experience
+        return [
+            ...this.app.workspace.getLeavesOfType('markdown'),
+            ...this.app.workspace.getLeavesOfType('canvas'),
+            ...this.app.workspace.getLeavesOfType('pdf'),
+            ...this.app.workspace.getLeavesOfType('image')
+        ];
+    }
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+    saveTabs() {
+        // Don't save if we are in the middle of restoring tabs
+        if (this.restoring) {
+            console.log('Persistent Tabs: Skipping save during restore.');
+            return;
+        }
+
+        console.log('Persistent Tabs: Saving open tabs state...');
+        const leaves = this.getCurrentLeaves();
+        const serializedLeaves: SerializedLeaf[] = [];
+
+        leaves.forEach(leaf => {
+            const viewState = leaf.getViewState();
+            // Ensure we only save leaves that have a file associated with them
+            if (viewState?.state?.file) {
+                // Check if file exists before saving its state
+                const filePath = viewState.state.file as string;
+                const file = this.app.vault.getAbstractFileByPath(filePath);
+                if (file instanceof TFile) {
+                    serializedLeaves.push({
+                    	filePath: filePath, // Store path explicitly
+                        state: viewState
+                    });
+                } else {
+                	console.log(`Persistent Tabs: File not found, skipping save for: ${filePath}`);
+                }
+            }
+        });
+
+        this.settings.savedTabs = serializedLeaves;
+        this.saveSettings();
+        console.log(`Persistent Tabs: Saved ${serializedLeaves.length} tabs.`);
+    }
+
+    async restoreTabs() {
+        console.log('Persistent Tabs: Attempting to restore tabs...');
+        if (!this.settings.savedTabs || this.settings.savedTabs.length === 0) {
+            console.log('Persistent Tabs: No saved tabs found to restore.');
+            return;
+        }
+
+        this.restoring = true; // Set flag
+
+        // Get current open file paths to avoid duplicates (optional, depends on desired behavior)
+        const currentFiles = new Set(
+             this.getCurrentLeaves()
+                .map(leaf => leaf.getViewState()?.state?.file)
+                .filter(file => !!file) // Filter out undefined/null paths
+        );
+
+        let restoredCount = 0;
+        for (const savedLeaf of this.settings.savedTabs) {
+            if (!savedLeaf.filePath) continue; // Skip if no path
+
+            // Optional: Skip if file is already open
+            // if (currentFiles.has(savedLeaf.filePath)) {
+            //  console.log(`Persistent Tabs: Skipping restore, file already open: ${savedLeaf.filePath}`);
+            //  continue;
+            // }
+
+            const file = this.app.vault.getAbstractFileByPath(savedLeaf.filePath);
+
+            if (file instanceof TFile) {
+                try {
+                    // Create a new leaf for the tab
+                    // 'tab' tries to open in the current group, 'split' creates a new split
+                    const leaf = this.app.workspace.getLeaf('tab');
+                    await leaf.openFile(file, { state: savedLeaf.state.state }); // Pass the inner state object
+                    restoredCount++;
+                } catch (error) {
+                    console.error(`Persistent Tabs: Error restoring tab for ${savedLeaf.filePath}:`, error);
+                }
+            } else {
+                console.log(`Persistent Tabs: File not found, cannot restore: ${savedLeaf.filePath}`);
+            }
+        }
+
+        console.log(`Persistent Tabs: Restored ${restoredCount} tabs.`);
+
+        // Optional: Clear saved tabs after restoring to prevent accidental restore later?
+        // Or keep them until the next save? Let's keep them for robustness.
+        // this.settings.savedTabs = [];
+        // await this.saveSettings();
+
+        this.restoring = false; // Unset flag
+    }
 }
 
-class SampleModal extends Modal {
-	constructor(app: App) {
-		super(app);
-	}
+// Simple Settings Tab (Optional)
+class PersistentTabsSettingTab extends PluginSettingTab {
+    plugin: PersistentTabsPlugin;
 
-	onOpen() {
-		const {contentEl} = this;
-		contentEl.setText('Woah!');
-	}
+    constructor(app: App, plugin: PersistentTabsPlugin) {
+        super(app, plugin);
+        this.plugin = plugin;
+    }
 
-	onClose() {
-		const {contentEl} = this;
-		contentEl.empty();
-	}
-}
+    display(): void {
+        const { containerEl } = this;
 
-class SampleSettingTab extends PluginSettingTab {
-	plugin: MyPlugin;
+        containerEl.empty();
+        containerEl.createEl('h2', { text: 'Persistent Tabs Settings' });
 
-	constructor(app: App, plugin: MyPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
+        // Example setting - maybe add options later?
+        new Setting(containerEl)
+            .setName('Saved Tab Data (Read-only)')
+            .setDesc('Shows the raw data of tabs saved. Primarily for debugging.')
+            .addTextArea(text => text
+                .setValue(JSON.stringify(this.plugin.settings.savedTabs, null, 2))
+                .setDisabled(true)
+                .inputEl.rows = 8);
 
-	display(): void {
-		const {containerEl} = this;
-
-		containerEl.empty();
-
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
+         new Setting(containerEl)
+            .setName('Clear Saved Tabs')
+            .setDesc('Manually clear the list of saved tabs. Use if restoration is causing issues.')
+            .addButton(button => button
+                .setButtonText('Clear Now')
+                .setWarning() // Make it look slightly dangerous
+                .onClick(async () => {
+                    console.log('Persistent Tabs: Clearing saved tabs via settings.');
+                    this.plugin.settings.savedTabs = [];
+                    await this.plugin.saveSettings();
+                    // Optionally refresh the display:
+                    this.display();
+                }));
+    }
 }

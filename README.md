@@ -1,94 +1,86 @@
-# Obsidian Sample Plugin
+# Persistent Tabs for Obsidian
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+[![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/frapaoli/obsidian-persistent-tabs?style=for-the-badge&sort=semver)](https://github.com/frapaoli/obsidian-persistent-tabs/releases/latest)
+![Obsidian Downloads](https://img.shields.io/badge/dynamic/json?logo=obsidian&color=%23483699&label=downloads&query=%24%5B%22persistent-tabs%22%5D.downloads&url=https%3A%2F%2Fraw.githubusercontent.com%2Fobsidianmd%2Fobsidian-releases%2Fmaster%2Fcommunity-plugin-stats.json&style=for-the-badge)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+An Obsidian plugin that saves currently open tabs and restores them when Obsidian restarts.
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open Sample Modal" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## How it Works
 
-## First time developing plugins?
+The plugin works automatically in the background:
 
-Quick starting guide for new plugin devs:
+1.  **Saving:** When Obsidian is about to close (or when the plugin is unloaded), it records a list of the currently open Markdown files, including their view state (like scroll position, reading/editing mode).
+2.  **Restoring:** When Obsidian starts up and the plugin loads, it reads the saved list and attempts to reopen each file in a new tab, restoring its previous state as closely as possible.
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+## Features
 
-## Releasing new releases
+*   **Automatic Operation:** No commands needed, it works passively.
+*   **Saves Open Tabs:** Remembers which Markdown files were open.
+*   **Restores Tabs on Startup:** Reopens the previously saved tabs when Obsidian launches.
+*   **Preserves View State:** Attempts to restore scroll position and view mode (live preview, reading, source mode) for each tab. *Note: State restoration depends on Obsidian's API capabilities.*
+*   **Graceful Handling:** If a file saved in the tabs list has been deleted or renamed before the next launch, the plugin will simply skip restoring that tab and log a message (check Developer Console).
+*   **Simple Settings:** Includes an option to manually clear the saved tab data if needed.
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+## Installation
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+### From Obsidian Community Plugins (Recommended)
 
-## Adding your plugin to the community plugin list
+1.  Open Obsidian's `Settings`.
+2.  Navigate to `Community plugins`.
+3.  Ensure "Restricted mode" is **off**.
+4.  Click `Browse` community plugins.
+5.  Search for "Persistent Tabs".
+6.  Click `Install`.
+7.  Once installed, click `Enable`.
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+### Manual Installation
 
-## How to use
+1.  Download the latest `main.js`, `manifest.json`, and `styles.css` (if available) from the [Releases page](https://github.com/frapaoli/obsidian-persistent-tabs/releases/latest) of this repository.
+2.  Go to your Obsidian vault's configuration folder: `YourVault/.obsidian/`.
+3.  Navigate into the `plugins` subfolder.
+4.  Create a new folder named `persistent-tabs`.
+5.  Copy the downloaded `main.js` and `manifest.json` (and `styles.css` if present) into the `persistent-tabs` folder.
+6.  Restart Obsidian.
+7.  Go to `Settings` -> `Community plugins`, find "Persistent Tabs" and enable it.
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+## Usage
 
-## Manually installing the plugin
+Once installed and enabled, the plugin works automatically!
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+*   Open the notes you want to work with in different tabs.
+*   Close Obsidian.
+*   Reopen Obsidian.
+*   Your previously opened tabs should reappear.
 
-## Improve code quality with eslint (optional)
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- To use eslint with this project, make sure to install eslint from terminal:
-  - `npm install -g eslint`
-- To use eslint to analyze this project use this command:
-  - `eslint main.ts`
-  - eslint will then create a report with suggestions for code improvement by file and line number.
-- If your source code is in a folder, such as `src`, you can use eslint with this command to analyze all files in that folder:
-  - `eslint .\src\`
+## Settings
 
-## Funding URL
+You can access the plugin settings via `Settings` -> `Community Plugins` -> `Persistent Tabs` -> `Options` (cog icon).
 
-You can include funding URLs where people who use your plugin can financially support it.
+*   **Saved Tab Data (Read-only):** Shows the raw JSON data of the currently saved tabs. Useful for debugging.
+*   **Clear Saved Tabs:** If you encounter issues with tab restoration (e.g., errors, unwanted tabs), you can use this button to clear the saved list. The list will be repopulated the next time Obsidian closes cleanly.
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+## Compatibility
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
-```
+*   **Required Obsidian Version:** 1.0.0 or higher (as specified in `manifest.json`).
 
-If you have multiple URLs, you can also do:
+## Known Issues / Limitations
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+*   Restoration accuracy depends on Obsidian's API. While view mode and scroll position are usually restored, complex states or states from other plugins might not be fully captured.
+*   If Obsidian crashes instead of closing cleanly, the tab state might not be saved correctly for that session.
+*   Restoring a very large number of tabs might introduce a slight delay during Obsidian startup.
+*   Only tested with standard Markdown views. Behaviour with highly customized views or complex plugins interacting with tabs is not guaranteed.
 
-## API Documentation
+## Contributing / Issues
 
-See https://github.com/obsidianmd/obsidian-api
+Found a bug or have a feature request? Please open an issue on the [GitHub repository](https://github.com/frapaoli/obsidian-persistent-tabs/issues).
+
+Contributions via Pull Requests are welcome!
+
+## Author
+
+Created by [@frapaoli](https://github.com/frapaoli)
+
+## License
+
+This plugin is released under the [MIT License](LICENSE).
