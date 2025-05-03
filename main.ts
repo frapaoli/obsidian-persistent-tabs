@@ -22,8 +22,6 @@ export default class PersistentTabsPlugin extends Plugin {
     restoring = false; // Flag to prevent saving during restore process
 
     async onload() {
-        console.log('Loading Persistent Tabs plugin');
-
         await this.loadSettings();
 
         // Add a setting tab (optional, but good practice)
@@ -52,7 +50,6 @@ export default class PersistentTabsPlugin extends Plugin {
     }
 
     onunload() {
-        console.log('Unloading Persistent Tabs plugin and saving state');
         // Ensure tabs are saved when the plugin is disabled or Obsidian closes
         // Check the flag to avoid saving an empty state if unload happens during restore
         if (!this.restoring) {
@@ -81,11 +78,9 @@ export default class PersistentTabsPlugin extends Plugin {
     saveTabs() {
         // Don't save if we are in the middle of restoring tabs
         if (this.restoring) {
-            console.log('Persistent Tabs: Skipping save during restore.');
             return;
         }
 
-        console.log('Persistent Tabs: Saving open tabs state...');
         const leaves = this.getCurrentLeaves();
         const serializedLeaves: SerializedLeaf[] = [];
 
@@ -101,21 +96,16 @@ export default class PersistentTabsPlugin extends Plugin {
                     	filePath: filePath, // Store path explicitly
                         state: viewState
                     });
-                } else {
-                	console.log(`Persistent Tabs: File not found, skipping save for: ${filePath}`);
                 }
             }
         });
 
         this.settings.savedTabs = serializedLeaves;
         this.saveSettings();
-        console.log(`Persistent Tabs: Saved ${serializedLeaves.length} tabs.`);
     }
 
     async restoreTabs() {
-        console.log('Persistent Tabs: Attempting to restore tabs...');
         if (!this.settings.savedTabs || this.settings.savedTabs.length === 0) {
-            console.log('Persistent Tabs: No saved tabs found to restore.');
             return;
         }
 
@@ -132,12 +122,6 @@ export default class PersistentTabsPlugin extends Plugin {
         for (const savedLeaf of this.settings.savedTabs) {
             if (!savedLeaf.filePath) continue; // Skip if no path
 
-            // Optional: Skip if file is already open
-            // if (currentFiles.has(savedLeaf.filePath)) {
-            //  console.log(`Persistent Tabs: Skipping restore, file already open: ${savedLeaf.filePath}`);
-            //  continue;
-            // }
-
             const file = this.app.vault.getAbstractFileByPath(savedLeaf.filePath);
 
             if (file instanceof TFile) {
@@ -150,17 +134,8 @@ export default class PersistentTabsPlugin extends Plugin {
                 } catch (error) {
                     console.error(`Persistent Tabs: Error restoring tab for ${savedLeaf.filePath}:`, error);
                 }
-            } else {
-                console.log(`Persistent Tabs: File not found, cannot restore: ${savedLeaf.filePath}`);
             }
         }
-
-        console.log(`Persistent Tabs: Restored ${restoredCount} tabs.`);
-
-        // Optional: Clear saved tabs after restoring to prevent accidental restore later?
-        // Or keep them until the next save? Let's keep them for robustness.
-        // this.settings.savedTabs = [];
-        // await this.saveSettings();
 
         this.restoring = false; // Unset flag
     }
@@ -197,7 +172,6 @@ class PersistentTabsSettingTab extends PluginSettingTab {
                 .setButtonText('Clear Now')
                 .setWarning() // Make it look slightly dangerous
                 .onClick(async () => {
-                    console.log('Persistent Tabs: Clearing saved tabs via settings.');
                     this.plugin.settings.savedTabs = [];
                     await this.plugin.saveSettings();
                     // Optionally refresh the display:

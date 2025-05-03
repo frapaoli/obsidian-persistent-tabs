@@ -1,6 +1,6 @@
 {
 	"name": "persistent-tabs",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Saves currently open tabs when closing the application and restores them when reopening it.",
 	"main": "main.js",
 	"scripts": {
